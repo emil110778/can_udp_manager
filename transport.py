@@ -1,6 +1,6 @@
 import asyncio
 
-class transport:
+class Transport:
     
     def __init__(self):
         self.main_loop = asyncio.get_event_loop()
@@ -10,3 +10,4 @@ class transport:
     
     async def listen_data(self):
         raise NotImplementedError
+

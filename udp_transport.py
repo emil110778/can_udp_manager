@@ -1,14 +1,15 @@
 import asyncio
 import socket
+import struct
 
 from anyio import create_udp_socket, create_connected_udp_socket
 
-from transport import transport
+from transport import Transport
 
 SOCKET_MAX_DATA_LENGTH = 8
 
 
-class Udp_socket(transport):
+class Udp_socket(Transport):
     def __init__(self, local_port: int = 2000, 
                 remote_host: str = 'localhost', 
                 remote_port: int = 2001):
