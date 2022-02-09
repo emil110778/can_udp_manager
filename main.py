@@ -5,14 +5,28 @@ from udp_transport import Udp_socket
 from can_transport import Vcan_socket
 
 class Transport_manager:
+    """Class for unit transport sockets.
+    This class allows you to redirect massages to other sockets
+    For add socket to redirect use function add_transport()
+    """
     def __init__(self):
         self.main_loop = asyncio.get_event_loop()
         self.transport_list = []
 
     def add_transport(self, transport: Transport):
+        """function for add transport
+
+        Args:
+            transport (Transport): created object inherited from Transport
+        """
         self.transport_list.append(transport)
 
     async def listener(self, transport: Transport):
+        """Redirect massages from transport object to other transports
+
+        Args:
+            transport (Transport): created object inherited from Transport
+        """
         while True:
             data = await transport.listen_data()
             if data != None:
@@ -22,10 +36,14 @@ class Transport_manager:
         
 
     async def main(self):
-            for transport in self.transport_list:
-                self.main_loop.create_task(self.listener(transport))
+        """Function for created class
+        """
+        for transport in self.transport_list:
+            self.main_loop.create_task(self.listener(transport))
 
     def start(self):
+        """function for run listening
+        """
         self.main_loop.run_until_complete(self.main())
         self.main_loop.run_forever()
 

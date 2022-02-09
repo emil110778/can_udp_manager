@@ -4,11 +4,33 @@ import asyncio
 from transport import Transport
 
 class Vcan_socket (Transport):
+    """Class for work with vcan has asynchronous functions for work with vcan.
+    Contain functions for encode and decode can massage to byte array."""
+
     def __init__(self, can_port: str = 'vcan0'):
+        """
+        Args:
+            can_port (str, optional): vcan port. Defaults to 'vcan0'.
+        """
         self.port = can_port
-        self.bus = can.interface.Bus(self.port, bustype = 'socketcan')
+        try:
+            self.bus = can.interface.Bus(self.port, bustype = 'socketcan')
+        except:
+            print("can't create bus for can: {}".format(self.port))
     
     def encode_data(self, arbitration_id_type: bool, arbitration_id: int, is_remote_frame: bool, is_error_frame: bool, data: bytes):
+        """Function for encoded can data to byte array
+
+        Args:
+            arbitration_id_type (bool): type of arbitration_id: True - 29 bit, False - 11 bit
+            arbitration_id (int): massage id
+            is_remote_frame (bool): data request flag
+            is_error_frame (bool): error massage flag
+            data (bytes): payload data
+
+        Returns:
+            [bytes]: encoded data to byte array
+        """
 
         ret = list(data)
 
@@ -22,60 +44,69 @@ class Vcan_socket (Transport):
         return ret
 
     def decode_data(self, data: bytes):
+        """Function for decode data
+
+        Args:
+            data (bytes): encoded data
+
+        Returns:
+            if decode success
+            [parsed data]: data format to: arbitration_id_type, arbitration_id, is_remote_frame, is_error_frame, data
+            else
+            [parsed data]: None
+        """
 
         arbitration_id_type = bool(data[0] & 0b1)
         is_remote_frame = bool(data[0] & 0b01)
         is_error_frame = bool(data[0] & 0b001)
+        try:
+            arbitration_id = data.pop(0) >> 3
+            arbitration_id |= data.pop(0) << 5
         
-        arbitration_id = data.pop(0) >> 3
-        arbitration_id |= data.pop(0) << 5
+            if arbitration_id_type:
+                arbitration_id |= data.pop(0) << (5 + 8)
+                arbitration_id |= data.pop(0) << (5 + 8 * 2)
 
-        if arbitration_id_type:
-            arbitration_id |= data.pop(0) << (5 + 8)
-            arbitration_id |= data.pop(0) << (5 + 8 * 2)
-
-        return  arbitration_id_type, arbitration_id, is_remote_frame, is_error_frame, data
+            return  arbitration_id_type, arbitration_id, is_remote_frame, is_error_frame, data
+        except:
+            return None
 
     async def send_data(self, data: bytes):
+        """Function for sending data to can bus
+
+        Args:
+            data (bytes): encoded data for send to can bus
+        """
 
         arbitration_id_type, arbitration_id, is_remote_frame, is_error_frame, data = self.decode_data(data)
-
-        massage = can.Message(is_extended_id = arbitration_id_type, 
-            arbitration_id = arbitration_id, 
-            data = data, 
-            is_remote_frame = is_remote_frame, 
-            is_error_frame = is_error_frame)
-        self.bus.send(massage)
+        try:
+            massage = can.Message(is_extended_id = arbitration_id_type, 
+                arbitration_id = arbitration_id, 
+                data = data, 
+                is_remote_frame = is_remote_frame, 
+                is_error_frame = is_error_frame)
+            self.bus.send(massage)
+        except:
+            print("can't send to can: {}".format(self.port))
         
 
     
     async def listen_data(self):
-        message = self.bus.recv(timeout = 0)
-        ret = message if message == None else self.encode_data(arbitration_id_type = message.is_extended_id, 
-            arbitration_id = message.arbitration_id, 
-            is_remote_frame = message.is_remote_frame, 
-            is_error_frame = message.is_error_frame, 
-            data = message.data)
-        if ret != None:
-            print(message.is_extended_id, 
-            message.arbitration_id, 
-            message.is_remote_frame, 
-            message.is_error_frame, 
-            message.data)
-        return ret
+        """Asynchronous function for received data from can bus
 
+        Returns:
+            [bytes]: !check returns to None, if bus has't data return None, else return encoded data
+        """
+        try:
+            message = self.bus.recv(timeout = 0)
+            ret = message if message == None else self.encode_data(arbitration_id_type = message.is_extended_id, 
+                arbitration_id = message.arbitration_id, 
+                is_remote_frame = message.is_remote_frame, 
+                is_error_frame = message.is_error_frame, 
+                data = message.data)
 
-async def main_async(can_socket: Vcan_socket):
-    while True:
-        data = await can_socket.listen_data()
-        if data != None:
-            
-            await udp_socket.send_data(data)
-
-    
-
-
-if __name__ == '__main__':
-    udp_socket = Vcan_socket()
-    main_loop = asyncio.get_event_loop()
-    main_loop.run_until_complete(main_async(udp_socket))
+            await asyncio.sleep(0.1)
+            return ret
+        except:
+            print("can't receive from can: {}".format(self.port))
+            await asyncio.sleep(10)
