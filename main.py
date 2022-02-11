@@ -21,13 +21,18 @@ class Transport_manager:
         """
         self.transport_list.append(transport)
 
-    async def listener(self, transport: Transport):
+    async def listener(self, transport: Transport, times: int):
         """Redirect massages from transport object to other transports
 
         Args:
             transport (Transport): created object inherited from Transport
         """
-        while True:
+        endlessly = False
+        if times == 0:
+            endlessly = True
+
+        while times or endlessly: 
+            if times != 0: times -= 1
             data = await transport.listen_data()
             if data != None:
                 for transport_for_send in self.transport_list:
@@ -39,7 +44,7 @@ class Transport_manager:
         """Function for created class
         """
         for transport in self.transport_list:
-            self.main_loop.create_task(self.listener(transport))
+            self.main_loop.create_task(self.listener(transport, 0))
 
     def start(self):
         """function for run listening

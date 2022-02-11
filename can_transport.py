@@ -41,7 +41,7 @@ class Vcan_socket (Transport):
             ret.insert(2, (arbitration_id >> (5 + 8)) & 0xFF)
             ret.insert(3, (arbitration_id >> (5 + 8*2)) & 0xFF)
 
-        return ret
+        return bytes(ret)
 
     def decode_data(self, data: bytes):
         """Function for decode data
@@ -55,10 +55,11 @@ class Vcan_socket (Transport):
             else
             [parsed data]: None
         """
+        data = list(data)
 
         arbitration_id_type = bool(data[0] & 0b1)
-        is_remote_frame = bool(data[0] & 0b01)
-        is_error_frame = bool(data[0] & 0b001)
+        is_remote_frame = bool(data[0] & 0b10)
+        is_error_frame = bool(data[0] & 0b100)
         try:
             arbitration_id = data.pop(0) >> 3
             arbitration_id |= data.pop(0) << 5
@@ -67,7 +68,7 @@ class Vcan_socket (Transport):
                 arbitration_id |= data.pop(0) << (5 + 8)
                 arbitration_id |= data.pop(0) << (5 + 8 * 2)
 
-            return  arbitration_id_type, arbitration_id, is_remote_frame, is_error_frame, data
+            return  arbitration_id_type, arbitration_id, is_remote_frame, is_error_frame, bytes(data)
         except:
             return None
 
